@@ -30,6 +30,8 @@ The discovery tag is `3.7`; see [docs/image-provenance.md](docs/image-provenance
 - Docker access with `--privileged` and `/dev/fuse` available.
 - For multi-host evaluation: two Linux machines with passwordless SSH access from the coordinator (node-specific SSH ports are supported), routable node IPs, and firewall access for CacheFS TCP `17888` and Serf TCP/UDP `17999`.
 
+For an optional account-specific Alibaba Cloud deployment reference, see [Alibaba Cloud EAS Deployment Reference](docs/alibaba-cloud-eas-deployment.md). It does not replace the binary-image validation workflows below.
+
 ## Default Reproduced path: real Qwen weights
 
 ```sh
