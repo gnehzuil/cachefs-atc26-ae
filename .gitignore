@@ -1,0 +1,12 @@
+config/hosts.env
+config/model.env
+runs/
+models/
+model-manifests/
+*.log
+*.tar
+*.tar.gz
+*.key
+*.pem
+.DS_Store
+__pycache__/
