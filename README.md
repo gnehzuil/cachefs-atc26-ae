@@ -26,7 +26,7 @@ The discovery tag is `3.7`; see [docs/image-provenance.md](docs/image-provenance
 
 ## Requirements
 
-- Linux x86_64 host(s), Docker, Bash, Python 3, and `sha256sum`.
+- Linux x86_64 or aarch64 host(s), Docker, Bash, Python 3, and `sha256sum`.
 - Docker access with `--privileged` and `/dev/fuse` available.
 - For multi-host evaluation: two Linux machines with passwordless SSH access from the coordinator (node-specific SSH ports are supported), routable node IPs, and firewall access for CacheFS TCP `17888` and Serf TCP/UDP `17999`.
 

@@ -2,13 +2,13 @@
 
 ## Functional smoke
 
-- One Linux x86_64 host, Docker, Bash, Python 3, `sha256sum`, and `/dev/fuse`.
+- One Linux x86_64 or aarch64 host, Docker, Bash, Python 3, `sha256sum`, and `/dev/fuse`.
 - Docker permission for `--privileged`, `/dev/fuse`, and host networking.
 - About 2 GiB RAM/disk and 15 minutes.
 
 ## Default real-Qwen path
 
-- Two Linux x86_64 hosts with passwordless SSH from the coordinator; routable network addresses; CacheFS TCP `17888` and Serf TCP/UDP `17999` allowed both directions.
+- Two Linux x86_64 or aarch64 hosts with passwordless SSH from the coordinator; routable network addresses; CacheFS TCP `17888` and Serf TCP/UDP `17999` allowed both directions.
 - Node A: at least 160 GiB private staging plus at least 180 GiB available RAM for source-ready cache.
 - Node B: at least 180 GiB available RAM for a full peer cache.
 - Evaluator has accepted the Qwen2.5-72B-Instruct model license and can obtain the model from ModelScope.
