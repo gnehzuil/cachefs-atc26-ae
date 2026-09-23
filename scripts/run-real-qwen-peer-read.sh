@@ -99,7 +99,7 @@ SOURCE_A=$(metric_value cachefs_source_reads "${RUN_DIR}/node-a-before-b.stats")
 SOURCE_B=$(metric_value cachefs_source_reads "${RUN_DIR}/node-b-after.stats")
 REMOTE_B=$(metric_value cachefs_remote_hits "${RUN_DIR}/node-b-after.stats")
 CHECKSUM_B=$(metric_value cachefs_remote_checksum_error_count "${RUN_DIR}/node-b-after.stats")
-assert_positive "node A source reads after source-ready" "${SOURCE_A}"
+assert_positive "node A source reads after sha256sum "${SOURCE_A}"
 assert_zero "node B source reads" "${SOURCE_B}"
 assert_positive "node B peer hits" "${REMOTE_B}"
 assert_zero "node B checksum errors" "${CHECKSUM_B}"

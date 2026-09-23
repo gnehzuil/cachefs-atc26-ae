@@ -9,10 +9,10 @@
 ## Default real-Qwen path
 
 - Two Linux x86_64 or aarch64 hosts with passwordless SSH from the coordinator; routable network addresses; CacheFS TCP `17888` and Serf TCP/UDP `17999` allowed both directions.
-- Node A: at least 160 GiB private staging plus at least 180 GiB available RAM for source-ready cache.
-- Node B: at least 180 GiB available RAM for a full peer cache.
+- Node A: at least 160 GiB available RAM for cachefs cache.
+- Node B: at least 160 GiB available RAM for a full peer cache.
 - Evaluator has accepted the Qwen2.5-72B-Instruct model license and can obtain the model from ModelScope.
-- Expected time: model acquisition depends on mirror bandwidth; source-ready, peer manifest, and preload each may take tens of minutes on modest storage/network paths.
+- Expected time: model acquisition depends on mirror bandwidth; sha256sum checksum on model files, peer manifest, and preload each may take tens of minutes on modest storage/network paths.
 
 ## Optional SGLang smoke
 
