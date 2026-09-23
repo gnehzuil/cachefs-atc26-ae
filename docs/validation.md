@@ -24,6 +24,18 @@ The fixed image digest was validated on two Linux x86_64 hosts with Docker, FUSE
 
 These measurements are diagnostic for the synthetic fixture and are not paper-performance results.
 
+## Observed real-Qwen validation
+
+A complete privately staged Qwen2.5-72B-Instruct snapshot (48 files, 37 safetensor shards, 145,424,101,606 bytes) was validated on two Linux x86_64 hosts using the fixed public CacheFS image. The model and private manifests were not included in the public artifact.
+
+| Scenario | Result | Peer/source/checksum evidence | Diagnostic time |
+| --- | --- | --- | ---: |
+| Source-backed Qwen peer read | Full manifest verified on shardless B node | B: 34,704 peer hits, 145,424,101,606 peer bytes, 0 source reads, 0 checksum errors | 213.59 s |
+| Broadcast preload | B filled its peer cache after A broadcast preload | B: 34,704 peer-hit delta, 145,424,101,606 cached bytes, 0 source reads, 0 checksum errors | 17.58 s |
+| Two-consumer warm burst | Both B consumers verified disjoint model-shard sets concurrently | Consumer 1: 17,160 peer hits / 71,915,225,781 peer bytes; Consumer 2: 17,544 peer hits / 73,508,875,825 peer bytes; both 0 source reads and 0 checksum errors | 112.53 s |
+
+These are two-host synthetic-topology diagnostics using real weights. They are not replications of the paper's 50/100-instance, NFS/object-store, or production performance figures.
+
 ## Troubleshooting
 
 - `/dev/fuse` missing: run on a Linux host with FUSE enabled and pass `--privileged --device /dev/fuse` to Docker.

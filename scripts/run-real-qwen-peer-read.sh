@@ -47,6 +47,11 @@ trap cleanup EXIT INT TERM
 wait_remote_mount() {
   local role=$1 container=$2 attempt
   for attempt in $(seq 1 120); do
+    if ! remote_exec "${role}" "docker inspect $(q "${container}") >/dev/null 2>&1"; then
+      echo "CacheFS container exited before mounting on node ${role}" >&2
+      remote_exec "${role}" "docker logs $(q "${container}")" >&2 || true
+      exit 1
+    fi
     if remote_exec "${role}" "docker exec $(q "${container}") /bin/sh -c 'grep -qs \" /work/mount \" /proc/mounts'"; then
       return 0
     fi
@@ -66,16 +71,18 @@ for role in a b; do
   remote_copy "${role}" "${SCRIPT_DIR}/container-node.sh" "${REMOTE_RUN}/"
   remote_exec "${role}" "docker pull $(q "${IMAGE_REF}") >/dev/null"
 done
+remote_copy a "${RUN_DIR}/model.manifest" "${REMOTE_RUN}/"
 remote_copy b "${RUN_DIR}/model.manifest" "${REMOTE_RUN}/"
 
-remote_exec a "docker run -d --rm --name $(q "${CONTAINER_A}") --privileged --device /dev/fuse --network host -v $(q "${REMOTE_RUN}"):/work -v $(q "${MODEL_SOURCE_A}"):/model:ro -v $(q "${REMOTE_RUN}/container-node.sh"):/ae-scripts/container-node.sh:ro -e NODE_MODE=source-ready -e NODE_NAME=$(q "${RUN_ID}-a") -e CACHE_NIC=$(q "${CACHE_NIC_A}") -e CACHE_PORT=${CACHE_PORT} -e SERF_PORT=${SERF_PORT} -e SERF_GROUP=$(q "${SERF_GROUP}") -e LIVENESS_PORT=${NODE_A_LIVENESS_PORT} -e METRICS_PORT=${NODE_A_METRICS_PORT} -e SOURCE_DIR=/model -e SOURCE_ID=$(q "${MODEL_SOURCE_ID}") -e CACHE_SIZE_MIB=${MODEL_CACHE_MIB} -e BLOCK_SIZE_MIB=${MODEL_BLOCK_MIB} -e PREFETCH_BLOCKS=0 --entrypoint /bin/sh $(q "${IMAGE_REF}") /ae-scripts/container-node.sh >/dev/null"
+remote_exec a "docker run -d --name $(q "${CONTAINER_A}") --privileged --device /dev/fuse --network host -v $(q "${REMOTE_RUN}"):/work -v $(q "${MODEL_SOURCE_A}"):/model:ro -v $(q "${REMOTE_RUN}/container-node.sh"):/ae-scripts/container-node.sh:ro -e NODE_MODE=source -e ENABLE_SOURCE_PEERMETA=1 -e SOURCE_PEERMETA=1 -e ENABLE_API_SERVER=1 -e API_SERVER_SOCK=/work/cachefs-api.sock -e NODE_NAME=$(q "${RUN_ID}-a") -e CACHE_NIC=$(q "${CACHE_NIC_A}") -e CACHE_PORT=${CACHE_PORT} -e SERF_PORT=${SERF_PORT} -e SERF_GROUP=$(q "${SERF_GROUP}") -e LIVENESS_PORT=${NODE_A_LIVENESS_PORT} -e METRICS_PORT=${NODE_A_METRICS_PORT} -e SOURCE_DIR=/model -e SOURCE_ID=$(q "${MODEL_SOURCE_ID}") -e CACHE_SIZE_MIB=${MODEL_CACHE_MIB} -e BLOCK_SIZE_MIB=${MODEL_BLOCK_MIB} -e PREFETCH_BLOCKS=0 --entrypoint /bin/sh $(q "${IMAGE_REF}") /ae-scripts/container-node.sh >/dev/null"
 wait_remote_mount a "${CONTAINER_A}"
 
-# source-ready synchronously loads and announces the complete immutable model.
-remote_exec a "docker exec $(q "${CONTAINER_A}") /usr/bin/cachefs source-ready /work/mount"
+# Static production-style source-backed provider: warm the complete immutable model and publish cached metadata.
+remote_exec a "docker exec $(q "${CONTAINER_A}") /bin/sh -c 'cd /work/mount && sha256sum -c /work/model.manifest'"
+remote_exec a "docker exec $(q "${CONTAINER_A}") /usr/bin/cachefs meta-ready -s /work/cachefs-api.sock /work/mount"
 remote_exec a "docker exec $(q "${CONTAINER_A}") cat /work/mount/.stats" > "${RUN_DIR}/node-a-before-b.stats"
 
-remote_exec b "docker run -d --rm --name $(q "${CONTAINER_B}") --privileged --device /dev/fuse --network host -v $(q "${REMOTE_RUN}"):/work -v $(q "${REMOTE_RUN}/container-node.sh"):/ae-scripts/container-node.sh:ro -e NODE_MODE=sourceless -e NODE_NAME=$(q "${RUN_ID}-b") -e CACHE_NIC=$(q "${CACHE_NIC_B}") -e CACHE_PORT=${CACHE_PORT} -e SERF_PORT=${SERF_PORT} -e SERF_GROUP=$(q "${SERF_GROUP}") -e SERF_JOIN=$(q "${NODE_A_IP}:${SERF_PORT}") -e LIVENESS_PORT=${NODE_B_LIVENESS_PORT} -e METRICS_PORT=${NODE_B_METRICS_PORT} -e SOURCE_ID=$(q "${MODEL_SOURCE_ID}") -e SOURCE_PEERMETA=30 -e CACHE_SIZE_MIB=${MODEL_CACHE_MIB} -e BLOCK_SIZE_MIB=${MODEL_BLOCK_MIB} -e PREFETCH_BLOCKS=0 --entrypoint /bin/sh $(q "${IMAGE_REF}") /ae-scripts/container-node.sh >/dev/null"
+remote_exec b "docker run -d --name $(q "${CONTAINER_B}") --privileged --device /dev/fuse --network host -v $(q "${REMOTE_RUN}"):/work -v $(q "${REMOTE_RUN}/container-node.sh"):/ae-scripts/container-node.sh:ro -e NODE_MODE=sourceless -e NODE_NAME=$(q "${RUN_ID}-b") -e CACHE_NIC=$(q "${CACHE_NIC_B}") -e CACHE_PORT=${CACHE_PORT} -e SERF_PORT=${SERF_PORT} -e SERF_GROUP=$(q "${SERF_GROUP}") -e SERF_JOIN=$(q "${NODE_A_IP}:${SERF_PORT}") -e LIVENESS_PORT=${NODE_B_LIVENESS_PORT} -e METRICS_PORT=${NODE_B_METRICS_PORT} -e SOURCE_ID=$(q "${MODEL_SOURCE_ID}") -e SOURCE_PEERMETA=30 -e CACHE_SIZE_MIB=${MODEL_CACHE_MIB} -e BLOCK_SIZE_MIB=${MODEL_BLOCK_MIB} -e PREFETCH_BLOCKS=0 --entrypoint /bin/sh $(q "${IMAGE_REF}") /ae-scripts/container-node.sh >/dev/null"
 wait_remote_mount b "${CONTAINER_B}"
 sleep 10
 
@@ -113,5 +120,5 @@ result = {
 }
 Path(sys.argv[1]).write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
 PY
-printf 'PASS real Qwen source-ready and peer-read manifest validation\n'
+printf 'PASS real Qwen source-backed and peer-read manifest validation\n'
 printf 'Run directory: %s\n' "${RUN_DIR}"

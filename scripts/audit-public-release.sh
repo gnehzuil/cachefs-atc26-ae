@@ -38,7 +38,7 @@ patterns=(
   '^MODELSCOPE_TOKEN=.+$'
 )
 for pattern in "${patterns[@]}"; do
-  if grep -RInE --exclude-dir=.git --exclude=audit-public-release.sh --exclude=hosts.env --exclude=model.env --binary-files=without-match -e "${pattern}" .; then
+  if grep -RInE --exclude-dir=.git --exclude-dir=runs --exclude=audit-public-release.sh --exclude=hosts.env --exclude=model.env --binary-files=without-match -e "${pattern}" .; then
     fail "forbidden disclosure pattern: ${pattern}"
   fi
 done

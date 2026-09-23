@@ -22,7 +22,8 @@ require_command python3
 load_hosts
 
 MODEL_CACHE_MIB="${MODEL_CACHE_MIB:-184320}"
-B_CACHE_MIB="${B_CACHE_MIB:-65536}"
+# Sourceless peer-metadata consumers must hold the complete filesystem metadata/data cache.
+B_CACHE_MIB="${B_CACHE_MIB:-196608}"
 MODEL_BLOCK_MIB="${MODEL_BLOCK_MIB:-4}"
 MODEL_SOURCE_ID="${MODEL_SOURCE_ID:-qwen2.5-72b-instruct-ae}"
 RUN_DIR="${RUN_DIR:-$(new_run_dir qwen-warm-burst)}"
@@ -51,6 +52,11 @@ trap cleanup EXIT INT TERM
 wait_mount() {
   local role=$1 container=$2 attempt
   for attempt in $(seq 1 120); do
+    if ! remote_exec "${role}" "docker inspect $(q "${container}") >/dev/null 2>&1"; then
+      echo "CacheFS container exited before mounting on node ${role}" >&2
+      remote_exec "${role}" "docker logs $(q "${container}")" >&2 || true
+      exit 1
+    fi
     if remote_exec "${role}" "docker exec $(q "${container}") /bin/sh -c 'grep -qs \" /work/mount \" /proc/mounts'"; then return 0; fi
     sleep 1
   done
@@ -72,12 +78,15 @@ remote_exec a "rm -rf $(q "${REMOTE_A}") && mkdir -p $(q "${REMOTE_A}")"
 remote_exec b "rm -rf $(q "${REMOTE_B}") && mkdir -p $(q "${REMOTE_B}")"
 remote_copy a "${SCRIPT_DIR}/container-node.sh" "${REMOTE_A}/"
 remote_copy b "${SCRIPT_DIR}/container-node.sh" "${REMOTE_B}/"
+remote_copy a "${RUN_DIR}/model.manifest" "${REMOTE_A}/"
 remote_exec a "docker pull $(q "${IMAGE_REF}") >/dev/null"
 remote_exec b "docker pull $(q "${IMAGE_REF}") >/dev/null"
 
-remote_exec a "docker run -d --rm --name $(q "${CONTAINER_A}") --privileged --device /dev/fuse --network host -v $(q "${REMOTE_A}"):/work -v $(q "${MODEL_SOURCE_A}"):/model:ro -v $(q "${REMOTE_A}/container-node.sh"):/ae-scripts/container-node.sh:ro -e NODE_MODE=source-ready -e NODE_NAME=$(q "${RUN_ID}-a") -e CACHE_NIC=$(q "${CACHE_NIC_A}") -e CACHE_PORT=${CACHE_PORT} -e SERF_PORT=${SERF_PORT} -e SERF_GROUP=$(q "${SERF_GROUP}") -e LIVENESS_PORT=${NODE_A_LIVENESS_PORT} -e METRICS_PORT=${NODE_A_METRICS_PORT} -e SOURCE_DIR=/model -e SOURCE_ID=$(q "${MODEL_SOURCE_ID}") -e CACHE_SIZE_MIB=${MODEL_CACHE_MIB} -e BLOCK_SIZE_MIB=${MODEL_BLOCK_MIB} -e PREFETCH_BLOCKS=0 --entrypoint /bin/sh $(q "${IMAGE_REF}") /ae-scripts/container-node.sh >/dev/null"
+remote_exec a "docker run -d --name $(q "${CONTAINER_A}") --privileged --device /dev/fuse --network host -v $(q "${REMOTE_A}"):/work -v $(q "${MODEL_SOURCE_A}"):/model:ro -v $(q "${REMOTE_A}/container-node.sh"):/ae-scripts/container-node.sh:ro -e NODE_MODE=source -e ENABLE_SOURCE_PEERMETA=1 -e SOURCE_PEERMETA=1 -e ENABLE_API_SERVER=1 -e API_SERVER_SOCK=/work/cachefs-api.sock -e NODE_NAME=$(q "${RUN_ID}-a") -e CACHE_NIC=$(q "${CACHE_NIC_A}") -e CACHE_PORT=${CACHE_PORT} -e SERF_PORT=${SERF_PORT} -e SERF_GROUP=$(q "${SERF_GROUP}") -e LIVENESS_PORT=${NODE_A_LIVENESS_PORT} -e METRICS_PORT=${NODE_A_METRICS_PORT} -e SOURCE_DIR=/model -e SOURCE_ID=$(q "${MODEL_SOURCE_ID}") -e CACHE_SIZE_MIB=${MODEL_CACHE_MIB} -e BLOCK_SIZE_MIB=${MODEL_BLOCK_MIB} -e PREFETCH_BLOCKS=0 --entrypoint /bin/sh $(q "${IMAGE_REF}") /ae-scripts/container-node.sh >/dev/null"
 wait_mount a "${CONTAINER_A}"
-remote_exec a "docker exec $(q "${CONTAINER_A}") /usr/bin/cachefs source-ready /work/mount"
+# Static production-style provider: load the real model and publish cached metadata.
+remote_exec a "docker exec $(q "${CONTAINER_A}") /bin/sh -c 'cd /work/mount && sha256sum -c /work/model.manifest'"
+remote_exec a "docker exec $(q "${CONTAINER_A}") /usr/bin/cachefs meta-ready -s /work/cachefs-api.sock /work/mount"
 A_SOURCE_BYTES_BEFORE=$(metric_remote a "${CONTAINER_A}" cachefs_source_read_bytes)
 
 for i in $(seq 1 "${CONSUMERS}"); do
@@ -86,8 +95,9 @@ for i in $(seq 1 "${CONSUMERS}"); do
   B_CONTAINERS+=("${container}")
   remote_exec b "mkdir -p $(q "${work}")"
   remote_copy b "${RUN_DIR}/partitions/consumer-${i}.manifest" "${work}/"
-  cache_port=$((18000 + i)); serf_port=$((18100 + i)); live_port=$((19000 + i)); metrics_port=$((19100 + i))
-  remote_exec b "docker run -d --rm --name $(q "${container}") --privileged --device /dev/fuse --network host -v $(q "${work}"):/work -v $(q "${REMOTE_B}/container-node.sh"):/ae-scripts/container-node.sh:ro -e NODE_MODE=sourceless -e NODE_NAME=$(q "${RUN_ID}-b${i}") -e CACHE_NIC=$(q "${CACHE_NIC_B}") -e CACHE_PORT=${cache_port} -e SERF_PORT=${serf_port} -e SERF_GROUP=$(q "${SERF_GROUP}") -e SERF_JOIN=$(q "${NODE_A_IP}:${SERF_PORT}") -e LIVENESS_PORT=${live_port} -e METRICS_PORT=${metrics_port} -e SOURCE_ID=$(q "${MODEL_SOURCE_ID}") -e SOURCE_PEERMETA=30 -e CACHE_SIZE_MIB=${B_CACHE_MIB} -e BLOCK_SIZE_MIB=${MODEL_BLOCK_MIB} -e PREFETCH_BLOCKS=0 --entrypoint /bin/sh $(q "${IMAGE_REF}") /ae-scripts/container-node.sh >/dev/null"
+  # CacheFS binds the data-plane listener at cache-port+1, so reserve a 3-port stride per logical node.
+  cache_port=$((18000 + 3 * i)); serf_port=$((18100 + i)); live_port=$((19000 + i)); metrics_port=$((19100 + i))
+  remote_exec b "docker run -d --name $(q "${container}") --privileged --device /dev/fuse --network host -v $(q "${work}"):/work -v $(q "${REMOTE_B}/container-node.sh"):/ae-scripts/container-node.sh:ro -e NODE_MODE=sourceless -e NODE_NAME=$(q "${RUN_ID}-b${i}") -e CACHE_NIC=$(q "${CACHE_NIC_B}") -e CACHE_PORT=${cache_port} -e SERF_PORT=${serf_port} -e SERF_GROUP=$(q "${SERF_GROUP}") -e SERF_JOIN=$(q "${NODE_A_IP}:${SERF_PORT}") -e LIVENESS_PORT=${live_port} -e METRICS_PORT=${metrics_port} -e SOURCE_ID=$(q "${MODEL_SOURCE_ID}") -e SOURCE_PEERMETA=30 -e CACHE_SIZE_MIB=${B_CACHE_MIB} -e BLOCK_SIZE_MIB=${MODEL_BLOCK_MIB} -e PREFETCH_BLOCKS=0 --entrypoint /bin/sh $(q "${IMAGE_REF}") /ae-scripts/container-node.sh >/dev/null"
   wait_mount b "${container}"
 done
 sleep 10
