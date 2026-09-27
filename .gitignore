@@ -6,6 +6,8 @@ model-manifests/
 *.log
 *.tar
 *.tar.gz
+# Offline image tarball is intentionally tracked; see README "Offline image".
+!dist/cachefs-3.7-amd64.tar.gz
 *.key
 *.pem
 .DS_Store

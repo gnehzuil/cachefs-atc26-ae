@@ -24,6 +24,23 @@ eci-nydus-registry.cn-hangzhou.cr.aliyuncs.com/kangaroo/cachefs@sha256:0ae0aa9be
 
 The discovery tag is `3.7`; see [docs/image-provenance.md](docs/image-provenance.md) for the observed version and platform.
 
+### Offline image (registry unreachable)
+
+If the pinned registry is not reachable from your evaluation hosts, load the bundled `linux/amd64` tarball instead of pulling. It is the `linux/amd64` image from the pinned multi-arch digest.
+
+```sh
+# Verify, then load on every node (both A and B for multi-host):
+sha256sum -c - <<'EOF'
+3f6fef905bfde8d101162bc620cadcc7deb18044f6d8a4ec182a85dacbaa40c2  dist/cachefs-3.7-amd64.tar.gz
+EOF
+gunzip -c dist/cachefs-3.7-amd64.tar.gz | docker load   # loads cachefs-ae:3.7
+
+# Run any workflow against the local image with registry pulls disabled:
+export IMAGE_REF=cachefs-ae:3.7
+export PULL_IMAGE=0
+bash scripts/preflight.sh --multihost
+```
+
 ## Requirements
 
 - Linux x86_64 or aarch64 host(s), Docker, Bash, Python 3, and `sha256sum`.

@@ -39,7 +39,9 @@ for role in a b; do
   remote_copy "${role}" "${RUN_DIR}/source" "${REMOTE_RUN}/"
   remote_copy "${role}" "${RUN_DIR}/source.manifest" "${REMOTE_RUN}/"
   remote_copy "${role}" "${SCRIPT_DIR}/container-node.sh" "${REMOTE_RUN}/"
-  remote_exec "${role}" "docker pull $(q "${IMAGE_REF}") >/dev/null"
+  if [[ "${PULL_IMAGE}" == "1" ]]; then
+    remote_exec "${role}" "docker pull $(q "${IMAGE_REF}") >/dev/null"
+  fi
 done
 
 remote_exec a "docker run -d --rm --name $(q "${CONTAINER_A}") --privileged --device /dev/fuse --network host -v $(q "${REMOTE_RUN}"):/work -v $(q "${REMOTE_RUN}/container-node.sh"):/ae-scripts/container-node.sh:ro -e ROLE=node-a -e NODE_NAME=$(q "${RUN_ID}-a") -e CACHE_NIC=$(q "${CACHE_NIC_A}") -e CACHE_PORT=${CACHE_PORT} -e SERF_PORT=${SERF_PORT} -e SERF_GROUP=$(q "${SERF_GROUP}") -e LIVENESS_PORT=${NODE_A_LIVENESS_PORT} -e METRICS_PORT=${NODE_A_METRICS_PORT} --entrypoint /bin/sh $(q "${IMAGE_REF}") /ae-scripts/container-node.sh >/dev/null"

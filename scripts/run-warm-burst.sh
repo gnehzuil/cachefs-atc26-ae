@@ -79,8 +79,10 @@ remote_exec b "rm -rf $(q "${REMOTE_B}") && mkdir -p $(q "${REMOTE_B}")"
 remote_copy a "${SCRIPT_DIR}/container-node.sh" "${REMOTE_A}/"
 remote_copy b "${SCRIPT_DIR}/container-node.sh" "${REMOTE_B}/"
 remote_copy a "${RUN_DIR}/model.manifest" "${REMOTE_A}/"
-remote_exec a "docker pull $(q "${IMAGE_REF}") >/dev/null"
-remote_exec b "docker pull $(q "${IMAGE_REF}") >/dev/null"
+if [[ "${PULL_IMAGE}" == "1" ]]; then
+  remote_exec a "docker pull $(q "${IMAGE_REF}") >/dev/null"
+  remote_exec b "docker pull $(q "${IMAGE_REF}") >/dev/null"
+fi
 
 remote_exec a "docker run -d --name $(q "${CONTAINER_A}") --privileged --device /dev/fuse --network host -v $(q "${REMOTE_A}"):/work -v $(q "${MODEL_SOURCE_A}"):/model:ro -v $(q "${REMOTE_A}/container-node.sh"):/ae-scripts/container-node.sh:ro -e NODE_MODE=source -e ENABLE_SOURCE_PEERMETA=1 -e SOURCE_PEERMETA=1 -e ENABLE_API_SERVER=1 -e API_SERVER_SOCK=/work/cachefs-api.sock -e NODE_NAME=$(q "${RUN_ID}-a") -e CACHE_NIC=$(q "${CACHE_NIC_A}") -e CACHE_PORT=${CACHE_PORT} -e SERF_PORT=${SERF_PORT} -e SERF_GROUP=$(q "${SERF_GROUP}") -e LIVENESS_PORT=${NODE_A_LIVENESS_PORT} -e METRICS_PORT=${NODE_A_METRICS_PORT} -e SOURCE_DIR=/model -e SOURCE_ID=$(q "${MODEL_SOURCE_ID}") -e CACHE_SIZE_MIB=${MODEL_CACHE_MIB} -e BLOCK_SIZE_MIB=${MODEL_BLOCK_MIB} -e PREFETCH_BLOCKS=24 --entrypoint /bin/sh $(q "${IMAGE_REF}") /ae-scripts/container-node.sh >/dev/null"
 wait_mount a "${CONTAINER_A}"

@@ -68,7 +68,9 @@ PY
 for role in a b; do
   remote_exec "${role}" "rm -rf $(q "${REMOTE_RUN}") && mkdir -p $(q "${REMOTE_RUN}")"
   remote_copy "${role}" "${SCRIPT_DIR}/container-node.sh" "${REMOTE_RUN}/"
-  remote_exec "${role}" "docker pull $(q "${IMAGE_REF}") >/dev/null"
+  if [[ "${PULL_IMAGE}" == "1" ]]; then
+    remote_exec "${role}" "docker pull $(q "${IMAGE_REF}") >/dev/null"
+  fi
 done
 remote_copy a "${RUN_DIR}/model.manifest" "${REMOTE_RUN}/"
 remote_copy b "${RUN_DIR}/model.manifest" "${REMOTE_RUN}/"

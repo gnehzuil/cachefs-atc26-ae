@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly IMAGE_REF="eci-nydus-registry.cn-hangzhou.cr.aliyuncs.com/kangaroo/cachefs@sha256:0ae0aa9be70ed615159b80dd32422079540bad6c6dac3be7a7648eb28e72bde7"
+readonly IMAGE_REF="${IMAGE_REF:-eci-nydus-registry.cn-hangzhou.cr.aliyuncs.com/kangaroo/cachefs@sha256:0ae0aa9be70ed615159b80dd32422079540bad6c6dac3be7a7648eb28e72bde7}"
+# Set PULL_IMAGE=0 when the image is already loaded locally (e.g. via `docker load`
+# of the offline tarball) and the registry is unreachable; scripts then skip pulls.
+readonly PULL_IMAGE="${PULL_IMAGE:-1}"
 readonly CACHE_PORT=17888
 readonly SERF_PORT=17999
 readonly NODE_A_METRICS_PORT=19678

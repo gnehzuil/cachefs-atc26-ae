@@ -17,10 +17,14 @@ check_host() {
   ${command_prefix} 'test "$(uname -s)" = Linux'
   ${command_prefix} 'test -c /dev/fuse'
   ${command_prefix} 'command -v docker >/dev/null'
-  ${command_prefix} "docker pull '${IMAGE_REF}' >/dev/null"
-  ${command_prefix} "docker image inspect '${IMAGE_REF}' --format '{{index .RepoDigests 0}}' | grep -F '${IMAGE_REF}' >/dev/null"
+  if [[ "${PULL_IMAGE}" == "1" ]]; then
+    ${command_prefix} "docker pull '${IMAGE_REF}' >/dev/null"
+    ${command_prefix} "docker image inspect '${IMAGE_REF}' --format '{{index .RepoDigests 0}}' | grep -F '${IMAGE_REF}' >/dev/null"
+  else
+    ${command_prefix} "docker image inspect '${IMAGE_REF}' >/dev/null"
+  fi
   ${command_prefix} "docker run --rm --entrypoint /bin/sh '${IMAGE_REF}' -lc 'test -x /usr/bin/cachefs && test -x /usr/bin/fusermount && /usr/bin/cachefs cache --help >/dev/null && command -v sha256sum >/dev/null'"
-  echo "PASS ${label}: Linux, Docker, FUSE, image digest, CacheFS CLI, and runtime tools"
+  echo "PASS ${label}: Linux, Docker, FUSE, image, CacheFS CLI, and runtime tools"
 }
 
 require_command docker
@@ -35,12 +39,17 @@ if [[ "${MODE}" == "--multihost" ]]; then
   load_hosts
   remote_exec a 'test -c /dev/fuse && command -v docker >/dev/null'
   remote_exec b 'test -c /dev/fuse && command -v docker >/dev/null'
-  remote_exec a "docker pull '${IMAGE_REF}' >/dev/null"
-  remote_exec b "docker pull '${IMAGE_REF}' >/dev/null"
-  remote_exec a "docker image inspect '${IMAGE_REF}' --format '{{index .RepoDigests 0}}' | grep -F '${IMAGE_REF}' >/dev/null"
-  remote_exec b "docker image inspect '${IMAGE_REF}' --format '{{index .RepoDigests 0}}' | grep -F '${IMAGE_REF}' >/dev/null"
+  if [[ "${PULL_IMAGE}" == "1" ]]; then
+    remote_exec a "docker pull '${IMAGE_REF}' >/dev/null"
+    remote_exec b "docker pull '${IMAGE_REF}' >/dev/null"
+    remote_exec a "docker image inspect '${IMAGE_REF}' --format '{{index .RepoDigests 0}}' | grep -F '${IMAGE_REF}' >/dev/null"
+    remote_exec b "docker image inspect '${IMAGE_REF}' --format '{{index .RepoDigests 0}}' | grep -F '${IMAGE_REF}' >/dev/null"
+  else
+    remote_exec a "docker image inspect '${IMAGE_REF}' >/dev/null"
+    remote_exec b "docker image inspect '${IMAGE_REF}' >/dev/null"
+  fi
   remote_exec a "ip route get '${NODE_B_IP}' | grep -F 'dev ${CACHE_NIC_A}' >/dev/null"
   remote_exec b "ip route get '${NODE_A_IP}' | grep -F 'dev ${CACHE_NIC_B}' >/dev/null"
-  echo "PASS node A and B: image digest and route interfaces verified"
+  echo "PASS node A and B: image and route interfaces verified"
   echo "Ensure inbound CacheFS TCP ${CACHE_PORT} and Serf TCP/UDP ${SERF_PORT} are permitted between hosts."
 fi

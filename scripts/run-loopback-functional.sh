@@ -13,7 +13,9 @@ RUN_DIR="${RUN_DIR:-$(new_run_dir loopback)}"
 mkdir -p "${RUN_DIR}"
 python3 "${SCRIPT_DIR}/generate_fixture.py" "${RUN_DIR}"
 
-docker pull "${IMAGE_REF}" >/dev/null
+if [[ "${PULL_IMAGE}" == "1" ]]; then
+  docker pull "${IMAGE_REF}" >/dev/null
+fi
 SERF_GROUP="cachefs-ae-loopback-$(basename "${RUN_DIR}")"
 docker run --rm --privileged --device /dev/fuse --network host \
   -e SERF_GROUP="${SERF_GROUP}" \
