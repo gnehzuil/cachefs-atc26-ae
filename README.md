@@ -63,6 +63,33 @@ bash scripts/run-preload-broadcast.sh
 
 Node A privately stages the model. Node B receives no raw shard copy and must read the Qwen manifest from peers with zero source reads. See [docs/model-data.md](docs/model-data.md) for the model-license and non-redistribution boundary.
 
+### Lower-RAM option: smaller model
+
+The two-host mechanism test is model-agnostic, so a smaller model lowers the RAM requirement. To validate with `Qwen2.5-7B-Instruct` (bf16 about 15 GB) instead of the 72B default, set these values in `config/model.env`:
+
+```sh
+MODEL_ID=Qwen/Qwen2.5-7B-Instruct
+MODEL_SOURCE_A=/path/to/private/Qwen2.5-7B-Instruct
+MODEL_MANIFEST_A=/path/to/private/Qwen2.5-7B-Instruct.manifest.sha256
+MODEL_METADATA_A=/path/to/private/Qwen2.5-7B-Instruct.manifest.json
+MODEL_LICENSE_URL=https://modelscope.cn/models/Qwen/Qwen2.5-7B-Instruct
+EXPECTED_SAFETENSOR_SHARDS=4   # must equal the model's actual .safetensors count
+MODEL_CACHE_MIB=20480          # memory-backed cache (MiB); keep it above the model size
+MODEL_SOURCE_ID=qwen2.5-7b-instruct-ae
+```
+
+Then stage and run exactly as the default path; both nodes now need only about 20 GiB of free RAM:
+
+```sh
+cp config/hosts.example.env config/hosts.env   # edit hosts as usual
+I_ACCEPT_MODEL_LICENSE=1 bash scripts/fetch-qwen-modelscope.sh
+bash scripts/preflight.sh --multihost
+bash scripts/run-real-qwen-peer-read.sh
+bash scripts/run-preload-broadcast.sh
+```
+
+`EXPECTED_SAFETENSOR_SHARDS` must match the chosen model or `verify-model-manifest.py` aborts; keep `MODEL_CACHE_MIB` above the model's on-disk size (reported as `total_bytes` in the metadata file). The expected result is identical to the 72B path and independent of model size: node A performs the source-backed fill and node B records full-manifest peer hits with zero source reads and zero checksum errors.
+
 ## Quick Functional smoke test
 
 ```sh
