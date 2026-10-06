@@ -2,8 +2,8 @@ CacheFS ATC'26 public binary-image artifact
 
 Copyright 2026 Alibaba Cloud, Inc. or its affiliates.
 
-The CacheFS binary image used by this artifact is distributed under the Apache License, Version 2.0, as confirmed by the artifact authors.
+The CacheFS binary is distributed under the Apache License, Version 2.0. The same license applies to the public artifact scripts and documentation.
 
-This public artifact repository contains orchestration scripts and documentation only. It does not contain CacheFS implementation source code or non-public build dependencies.
+The container image also includes third-party components under their respective licenses and package notices.
 
-Third-party components represented by the public binary image include software derived from or incorporating components whose notices must be preserved in the image distribution. Before a public release, maintainers must complete and record the third-party notice audit in docs/image-provenance.md.
+This public artifact repository contains the fixed binary image, orchestration scripts, and documentation. It does not contain CacheFS implementation source code or non-public build dependencies.

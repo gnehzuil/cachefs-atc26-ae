@@ -19,5 +19,3 @@ The public artifact repository, CacheFS image, result files, GitHub release, and
 ## Model scope
 
 The real-model tests validate byte-for-byte FUSE/P2P access to an immutable model tree. They do not publish model contents, benchmark model quality, compare model outputs, or establish production serving throughput.
-
-The optional SGLang smoke path requires a separately pinned official SGLang image, GPU-container runtime, and a compatible GPU configuration. It is not enabled until those prerequisites are verified.

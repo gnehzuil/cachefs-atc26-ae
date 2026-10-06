@@ -9,6 +9,5 @@ These AE scenarios validate selected mechanisms in the submitted CacheFS paper. 
 | Broadcast preload (§5.6) | Real Qwen `preload --broadcast` | A source-ready counters; B preload peer bytes/hits; B zero source reads; manifest verification | Reported 7–41%/27% gains or framework-init overlap |
 | Warm P2P burst (§5.4) | Real Qwen 2–4 consumer warm burst | Per-consumer shard checks, peer/source bytes, coordinator wall time | Near-constant completion through 400 nodes or tail guarantees |
 | TCP data path (§5.3) | Optional real-Qwen TCP diagnostic | Fixed image, aggregate peer bytes, wall time, counter deltas, integrity | 140 Gbps, gRPC comparison, RDMA, or paper-scale throughput |
-| FUSE compatibility with inference loader (§4, §5.5) | Optional SGLang FUSE smoke | Image/model versions, ready state, short request response, CacheFS counters | Inference quality, latency, throughput, SDK/FUSE comparison, or production readiness |
 
-Not covered: the hash-aware versus 2-random eviction comparison, CacheRoot, production NFS/object-store baselines, RDMA, GPU-hour savings, fleet deployment, fault injection, or external-system comparisons.
+Not covered: end-to-end vLLM/SGLang startup or inference, the hash-aware versus 2-random eviction comparison, CacheRoot, production NFS/object-store baselines, RDMA, GPU-hour savings, fleet deployment, fault injection, or external-system comparisons.
