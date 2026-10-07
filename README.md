@@ -4,7 +4,7 @@
 
 The default Reproduced path uses a privately staged, evaluator-obtained Qwen2.5-72B-Instruct snapshot. The public repository contains no model weights, production traces, credentials, or private host configuration.
 
-Reserved version-specific Zenodo DOI: `10.5281/zenodo.23167350`.
+Permanent archive: [Zenodo DOI 10.5281/zenodo.23167350](https://doi.org/10.5281/zenodo.23167350).
 
 ## Scope
 
@@ -30,7 +30,7 @@ The registry permits anonymous pulls without an Alibaba Cloud account and publis
 
 ### Offline image (recommended registry-independent amd64 path)
 
-The repository includes a `linux/amd64` image tarball, which will also be included in the final Zenodo record. It is covered by the release manifest and can be used without registry access. It does not support `linux/arm64`.
+The repository and Zenodo record include a `linux/amd64` image tarball. It is covered by the release manifest and can be used without registry access. It does not support `linux/arm64`.
 
 ```sh
 # Verify, then load on every node (both A and B for multi-host):
